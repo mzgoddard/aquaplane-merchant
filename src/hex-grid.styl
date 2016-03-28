@@ -1,0 +1,54 @@
+.hex-grid {
+  pointer-events: none;
+}
+.hex-grid-row {
+  white-space: nowrap;
+}
+.hex-grid-tile {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 43.75px;
+  margin-left: -13px;
+  background-image: url(hex-tile.svg);
+  background-repeat: no-repeat;
+  clip-path: url(hex-tile-clip.svg);
+  mask-image: url(hex-tile-clip.svg);
+
+  path, polygon {
+    pointer-events: initial;
+  }
+
+  path:hover, polygon:hover {
+    fill: blue;
+    background-image: url(hex-tile-hover.svg);
+  }
+
+  &.selected {
+    background-image: url(hex-tile-focus.svg);
+  }
+}
+
+.hex-grid-tile-blank {
+  background-image: none;
+  path, polygon {
+    fill: none;
+    stroke: none;
+  }
+}
+
+.hex-grid-tile:nth-child(1) {
+  margin-left: 0;
+}
+
+.hex-grid-tile:nth-child(even) {
+  top: 21.875px;
+}
+
+.odd-grid .hex-grid-tile:nth-child(even) {
+  top: 0;
+}
+
+.odd-grid .hex-grid-tile:nth-child(odd) {
+  top: 21.875px;
+}
