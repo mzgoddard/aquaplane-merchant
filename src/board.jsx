@@ -67,6 +67,16 @@ function inHexOdd(i, j, n) {
 }
 // grid5x5.map(v => inHexOdd(v[0]+1, v[1]+1, 3))
 
+const _inHex = {
+  3: map(newGrid(3), (j, i) => inHex(i, j, 3)),
+  5: map(newGrid(5), (j, i) => inHex(i, j, 5)),
+};
+
+const _inHexOdd = {
+  3: map(newGrid(3), (j, i) => inHexOdd(i, j, 3)),
+  5: map(newGrid(5), (j, i) => inHexOdd(i, j, 5)),
+};
+
 function hexHex(n) {
   let grid = [];
   let ceil2 = Math.ceil(n / 2);
@@ -127,8 +137,20 @@ function flat(grid) {
   return grid.reduce((carry, row) => carry.concat(row), []);
 }
 
+function adjacentXgrid(grid, x) {
+  return grid.reduce((carry, row) => carry + row.reduce((carry, v) => carry + (v === x ? 1 : 0), 0), 0);
+}
+
 function adjacentX(grid, x) {
   return grid.reduce((carry, v) => carry + (v === x ? 1 : 0), 0);
+}
+
+function adjacentXiter(iter, x) {
+  let carry = 0;
+  for (let v of iter) {
+    carry += v === x ? 1 : 0;
+  }
+  return carry;
 }
 
 function newGrid(size) {
@@ -149,6 +171,17 @@ function subgrid(grid, y, x, size) {
   });
 }
 
+const _subgrids = {};
+
+function subgriditer(grid, y, x, size) {
+  if (!_subgrids[size]) {
+    _subgrids[size] = newGrid(size);
+  }
+  return mapiter(_subgrids[size], (j, i, g) => {
+    return grid[y + j][x + i];
+  });
+}
+
 function subhexgrid3(grid, y, x) {
   return map(subgrid(grid, y - 1, x - 1, 3), (j, i, g) => {
     if (x % 2 === 0 ? inHexOdd(i, j, 3) : inHex(i, j, 3)) {
@@ -158,8 +191,55 @@ function subhexgrid3(grid, y, x) {
   });
 }
 
+function subhexgrid3fn(grid, y, x, fn) {
+  for (let j = 0; j < 3; j++) {
+    for (let i = 0; i < 3; i++) {
+      if (x % 2 === 0 ? _inHexOdd[3][j][i] : _inHex[3][j][i]) {
+        fn(grid[y - 1 + j][x - 1 + i]);
+      }
+    }
+  }
+}
+
+function subhexgrid3iter(grid, y, x) {
+  if (!_subgrids[3]) {
+    _subgrids[3] = newGrid(3);
+  }
+  return mapiter(_subgrids[3], (j, i) => {
+    if (x % 2 === 0 ? inHexOdd(i, j, 3) : inHex(i, j, 3)) {
+      return grid[y - 1 + j][x - 1 + i];
+    }
+    return null;
+  });
+}
+
 function subhexgrid5(grid, y, x) {
-  return map(subgrid(grid, y - 2, x - 2, 5), (j, i, g) => {
+  if (!_subgrids[5]) {
+    _subgrids[5] = newGrid(5);
+  }
+  return map(_subgrids[5], (j, i, g) => {
+    if (x % 2 === 0 ? inHex(i, j, 5) : inHexOdd(i, j, 5)) {
+      return grid[y - 2 + j][x - 2 + i];
+    }
+    return null;
+  });
+}
+
+function subhexgrid5fn(grid, y, x, fn) {
+  for (let j = 0; j < 5; j++) {
+    for (let i = 0; i < 5; i++) {
+      if (x % 2 === 0 ? _inHex[5][j][i] : _inHexOdd[5][j][i]) {
+        fn(grid[y - 2 + j][x - 2 + i]);
+      }
+    }
+  }
+}
+
+function subhexgrid5iter(grid, y, x) {
+  if (!_subgrids[5]) {
+    _subgrids[5] = newGrid(5);
+  }
+  return mapiter(_subgrids[5], (j, i) => {
     if (x % 2 === 0 ? inHex(i, j, 5) : inHexOdd(i, j, 5)) {
       return grid[y - 2 + j][x - 2 + i];
     }
@@ -176,6 +256,24 @@ function map(grid, fn) {
   }
   return newgrid;
 }
+
+// function *mapiter(grid, fn) {
+//   for (let j = 0; j < grid.length; j++) {
+//     for (let i = 0; i < grid[j].length; i++) {
+//       yield fn(j, i, grid);
+//     }
+//   }
+// }
+
+// function *remapiter(iter, size, fn) {
+//   let index = 0, i = 0, j = 0;
+//   for (let cell of iter) {
+//     fn(j, i, cell);
+//     index++;
+//     i = index % size;
+//     j = index / size | 0;
+//   }
+// }
 
 function premap(pre, fn) {
   return function(j, i, g) {
@@ -196,41 +294,120 @@ const noise = (i, j) => (
   ) % 5 / 2))
 );
 
+function adjacenthex3(grid, y, x, result) {
+  let adjacent0 = 0;
+  let adjacent1 = 0;
+  let adjacent2 = 0;
+  let adjacent3 = 0;
+  for (let j = 0; j < 3; j++) {
+    for (let i = 0; i < 3; i++) {
+      if (x % 2 === 0 ? _inHexOdd[3][j][i] : _inHex[3][j][i]) {
+        const v = grid[y - 1 + j][x - 1 + i];
+        adjacent0 += v === 0 ? 1 : 0;
+        adjacent1 += v === 1 ? 1 : 0;
+        adjacent2 += v === 2 ? 1 : 0;
+        adjacent3 += v === 3 ? 1 : 0;
+      }
+    }
+  }
+  result.adjacent0 = adjacent0;
+  result.adjacent1 = adjacent1;
+  result.adjacent2 = adjacent2;
+  result.adjacent3 = adjacent3;
+}
+
+function adjacenthex5(grid, y, x, result) {
+  let adjacent0 = 0;
+  let adjacent1 = 0;
+  let adjacent2 = 0;
+  let adjacent3 = 0;
+  for (let j = 0; j < 5; j++) {
+    for (let i = 0; i < 5; i++) {
+      if (x % 2 === 0 ? _inHex[5][j][i] : _inHexOdd[5][j][i]) {
+        const v = grid[y - 2 + j][x - 2 + i];
+        adjacent0 += v === 0 ? 1 : 0;
+        adjacent1 += v === 1 ? 1 : 0;
+        adjacent2 += v === 2 ? 1 : 0;
+        adjacent3 += v === 3 ? 1 : 0;
+      }
+    }
+  }
+  result.adjacent0in5x5 = adjacent0;
+  result.adjacent1in5x5 = adjacent1;
+  result.adjacent2in5x5 = adjacent2;
+  result.adjacent3in5x5 = adjacent3;
+}
+
+const _adjacentPreCache = {
+  i: 0,
+  j: 0,
+  g: null,
+  here: 0,
+  adjacent0: 0,
+  adjacent1: 0,
+  adjacent2: 0,
+  adjacent3: 0,
+  adjacent0in5x5: 0,
+  adjacent1in5x5: 0,
+  adjacent2in5x5: 0,
+  adjacent3in5x5: 0,
+};
+
 function adjacentPre(j, i, g, fn) {
   if (i < 2 || i >= g.length - 2 || j < 2 || j >= g.length - 2) {
     return g[j][i];
   }
   const here = g[j][i];
-  const subgrid3x3 = flat(subhexgrid3(g, j, i));
-  // debugger;
-  const subgrid5x5 = flat(subhexgrid5(g, j, i));
-  // debugger;
-  const adjacent0 = adjacentX(subgrid3x3, 0);
-  const adjacent1 = adjacentX(subgrid3x3, 1);
-  const adjacent2 = adjacentX(subgrid3x3, 2);
-  const adjacent3 = adjacentX(subgrid3x3, 3);
-  const adjacent0in5x5 = adjacentX(subgrid5x5, 0);
-  const adjacent1in5x5 = adjacentX(subgrid5x5, 1);
-  const adjacent2in5x5 = adjacentX(subgrid5x5, 2);
-  const adjacent3in5x5 = adjacentX(subgrid5x5, 3);
-  return fn({
-    i,
-    j,
-    g,
-    here,
-    adjacent0,
-    adjacent1,
-    adjacent2,
-    adjacent3,
-    adjacent0in5x5,
-    adjacent1in5x5,
-    adjacent2in5x5,
-    adjacent3in5x5,
-  });
+  // const subgrid3x3 = subhexgrid3(g, j, i);
+  // const subgrid5x5 = subhexgrid5(g, j, i);
+  // let adjacent0 = 0;
+  // let adjacent1 = 0;
+  // let adjacent2 = 0;
+  // let adjacent3 = 0;
+  // subhexgrid3fn(g, j, i, v => {
+  //   adjacent0 += v === 0;
+  //   adjacent1 += v === 1;
+  //   adjacent2 += v === 2;
+  //   adjacent3 += v === 3;
+  // });
+  // const adjacent0 = adjacentXgrid(subgrid3x3, 0);
+  // const adjacent1 = adjacentXgrid(subgrid3x3, 1);
+  // const adjacent2 = adjacentXgrid(subgrid3x3, 2);
+  // const adjacent3 = adjacentXgrid(subgrid3x3, 3);
+  // const adjacent0 = adjacentXiter(subhexgrid3iter(g, j, i), 0);
+  // const adjacent1 = adjacentXiter(subhexgrid3iter(g, j, i), 1);
+  // const adjacent2 = adjacentXiter(subhexgrid3iter(g, j, i), 2);
+  // const adjacent3 = adjacentXiter(subhexgrid3iter(g, j, i), 3);
+  // let adjacent0in5x5 = 0;
+  // let adjacent1in5x5 = 0;
+  // let adjacent2in5x5 = 0;
+  // let adjacent3in5x5 = 0;
+  // subhexgrid5fn(g, j, i, v => {
+  //   adjacent0in5x5 += v === 0;
+  //   adjacent1in5x5 += v === 1;
+  //   adjacent2in5x5 += v === 2;
+  //   adjacent3in5x5 += v === 3;
+  // });
+  // const adjacent0in5x5 = adjacentXgrid(subgrid5x5, 0);
+  // const adjacent1in5x5 = adjacentXgrid(subgrid5x5, 1);
+  // const adjacent2in5x5 = adjacentXgrid(subgrid5x5, 2);
+  // const adjacent3in5x5 = adjacentXgrid(subgrid5x5, 3);
+  const result = _adjacentPreCache;
+  result.i = i;
+  result.j = j;
+  result.g = g;
+  result.here = here;
+  // result.adjacent0in5x5 = adjacent0in5x5;
+  // result.adjacent1in5x5 = adjacent1in5x5;
+  // result.adjacent2in5x5 = adjacent2in5x5;
+  // result.adjacent3in5x5 = adjacent3in5x5;
+  adjacenthex3(g, j, i, result);
+  adjacenthex5(g, j, i, result);
+  return fn(result);
 }
 
 function islandTiles(j, i, g) {
-  const visited = newGrid(g.length);
+  // const visited = newGrid(g.length);
   const tiles = [[i, j]];
   let found = false;
   // debugger;
@@ -313,30 +490,58 @@ function genGrid() {
         here
       );
     })),
-    // decide ports
-    grid => map(grid, premap(adjacentPre, ({
-      i, j, g,
-      here,
-      adjacent2,
-      adjacent3in5x5,
-    }) => {
-      let choice;
-      if (here === 3) {
-        let tiles = islandTiles(j, i, g);
-        tiles = tiles.filter(([x, y]) => g[y][x] === 3);
-        tiles.sort(([ax, ay], [bx, by]) => ay === by ? ax - bx : ay - by);
-        choice = tiles[
-          tiles.length * tiles[0][0] * tiles[0][1] * 67 %
-          51 % tiles.length
-        ];
+    // decide  ports
+    grid => {
+      const islandCache = newGrid(grid.length);
+      for (let j = 0; j < grid.length; j++) {
+        const row = grid[j];
+        for (let i = 0; i < row.length; i++) {
+          if (typeof islandCache[j][i] === 'object' || row[i] !== 3) {continue;}
+          let tiles = islandTiles(j, i, grid);
+          tiles = tiles.filter(([x, y]) => grid[y][x] === 3);
+          tiles.sort(([ax, ay], [bx, by]) => ay === by ? ax - bx : ay - by);
+          for (let k = 0; k < tiles.length; k++) {
+            islandCache[tiles[k][1]][tiles[k][0]] = tiles;
+          }
+        }
       }
-      return (
-        here === 3 && choice[0] === i && choice[1] === j ? 3 :
-        here === 3 ? 2 :
-        here
-      );
-    })),
-    grid => subgrid(grid, 8, 8, 64)
+      return map(grid, (j, i, g) => {
+        let choice;
+        const here = grid[j][i];
+        if (here === 3) {
+          let tiles = islandCache[j][i];
+          // islandTiles(j, i, g);
+          // tiles = tiles.filter(([x, y]) => g[y][x] === 3);
+          // tiles.sort(([ax, ay], [bx, by]) => ay === by ? ax - bx : ay - by);
+          choice = tiles[
+            tiles.length * tiles[0][0] * tiles[0][1] * 67 %
+            51 % tiles.length
+          ];
+        }
+        return (
+          here === 3 && choice[0] === i && choice[1] === j ? 3 :
+          here === 3 ? 2 :
+          here
+        );
+      });
+    },
+    grid => subgrid(grid, 8, 8, 64),
+    grid => {
+      const ports = flat(grid).reduce((carry, cell, l) => {
+        if (cell === 3) {
+          carry.push([l % 64, (l / 64) | 0]);
+        }
+        return carry;
+      }, []);
+      const [startX, startY] = ports[37 % ports.length];
+      return map(grid, (j, i, g) => {
+        return {
+          base: g[j][i],
+          ships: i === startX && j === startY ? [0] : [],
+          port: g[j][i] === 3 ? j * 64 + i : null,
+        }
+      });
+    }
   );
 }
 
