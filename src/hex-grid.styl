@@ -1,21 +1,51 @@
 .hex-grid {
   pointer-events: none;
 }
+
 .hex-grid-row {
-  white-space: nowrap;
-}
-.hex-grid-tile {
   position: relative;
+  height: 65.625px;
+  white-space: nowrap;
+  // transform: translate3d(0, 0, 0);
+}
+
+.hex-grid-row:nth-child(n+2) {
+  margin-top: -21.875px;
+}
+
+.hex-grid-stable {
+  transform: translate3d(0, 0, 0);
+}
+
+.hex-grid-tile-group {
+  position: absolute;
+  transform: translate3d(0, 0, 0);
+  top: 0;
+  left: 0;
+  width: 309px;
+  height: 350px;
+  // width: 400px;
+  // height: 550px;
+}
+
+// .hex-grid-tile-group:nth-child(n+2) {
+//   left: 296px;
+// }
+
+.hex-grid-tile {
+  position: absolute;
+  // position: relative;
   display: inline-block;
   width: 50px;
   height: 43.75px;
   margin-left: -13px;
   background-image: url(hex-tile.svg);
   background-repeat: no-repeat;
-  clip-path: url(hex-tile-clip.svg);
-  mask-image: url(hex-tile-clip.svg);
+  // clip-path: url(hex-tile-clip.svg);
+  // mask-image: url(hex-tile-clip.svg);
 
   path, polygon {
+    stroke: black;
     pointer-events: initial;
   }
 
@@ -29,6 +59,12 @@
   }
 }
 
+.hex-grid-tile-ship {
+  path, polygon {
+    stroke: brown;
+  }
+}
+
 .hex-grid-tile-blank {
   background-image: none;
   path, polygon {
@@ -37,8 +73,12 @@
   }
 }
 
-.hex-grid-tile:nth-child(1) {
+.hex-grid-tile:nth-child(8n + 1) {
   margin-left: 0;
+}
+
+.hex-grid-tile:nth-child(odd) {
+  top: 0px;
 }
 
 .hex-grid-tile:nth-child(even) {

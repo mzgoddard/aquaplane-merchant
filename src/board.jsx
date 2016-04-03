@@ -1,6 +1,21 @@
 import React, {Component} from 'react';
+import ReactDOM from 'react-dom';
+import update from 'react-addons-update';
+
+import autobind from './autobind';
 
 import HexGrid from './hex-grid';
+
+function position(_el, _result) {
+  const result = _result || [0, 0];
+  let el = _el;
+  while (el) {
+    result[0] += el.offsetLeft;
+    result[1] += el.offsetTop;
+    el = el.offsetParent;
+  }
+  return result;
+}
 
 // <HexGrid tiles={[0, 1, 2, 3, 4].map(() => [0, 1, 2, 3, 4])} />
 // <HexGrid tiles={[[null, 1, 2, 3, null], [0, 1, 2, 3, 4], [0, 1, 2, 3, 4], [0, 1, 2, 3, 4], [null, null, 2, null, null]]} />
@@ -554,12 +569,300 @@ function genGrid() {
 // <div className={"odd-grid"}><HexGrid tiles={hexHexOdd(7)} /></div>
 // <div className={"odd-grid"}><HexGrid tiles={hexHexOdd(9)} /></div>
 
-export default class Board extends Component {
-  render(props) {
-    console.log(hexHex(9));
-    console.log(genGrid());
-    return (<div>
-      <HexGrid tiles={genGrid()} />
+function gameCreate({origin, grid}) {
+  return {
+    origin: origin,
+    grid: grid,
+    ships: [shipCreate()],
+    ports: grid.reduce((carry, row, j) => carry.concat(row.reduce((carry, here, i) => {
+      if (here === 3) {
+        carry.push(portCreate(j, i, grid));
+      }
+      return carry;
+    }, [])), []),
+  }
+}
+
+function portCreate(j, i, grid) {
+}
+
+function shipCreate() {
+  return {
+    id: 0,
+    shipType: 'beginner',
+    cargo: [],
+    maxCargo: 2,
+    maxMoves: 2,
+    movesLeft: 0,
+  };
+}
+
+function gameStartRound(game) {
+  return update(game, {
+    ships: {$apply: ships => ships.map(ship => (
+      update(ship, {movesLeft: {$set: ship.maxMoves}})
+    ))},
+  });
+}
+
+function shipStartRound(ship) {
+
+}
+
+function gridFindShip(grid, id) {
+  return grid.reduce((carry, row, j) => (
+    carry || row.reduce((carry, cell, i) => (
+      carry || (cell.ships.indexOf(id) > -1 ? [i, j] : null)
+    ), null)
+  ), null);
+}
+
+function gameMoveShip(game, move) {
+  const position = gridFindShip(game.grid, move.id);
+  if (position) {
+    const [x, y] = position;
+    const [nx, ny] = relative(x, y, move.direction);
+    const change = {grid: {
+      [y]: {
+        [x]: {
+          ships: {$splice: [[(game.grid[y][x].ships.indexOf(move.id)), 1]]},
+        },
+      },
+    }};
+    if (nx === x && ny === y) {
+      change.grid[ny][nx].ships.$push = [move.id];
+    }
+    else if (ny === y) {
+      change.grid[ny][nx] = {
+        ships: {
+          $push: [move.id],
+        },
+      };
+    }
+    else {
+      change.grid[ny] = {
+        [nx]: {
+          ships: {
+            $push: [move.id],
+          },
+        },
+      };
+    }
+    change.ships = {
+      [move.id]: {
+        movesLeft: {$apply: movesLeft => movesLeft - 1},
+      },
+    };
+    // console.log(change);
+    return update(game, change);
+  }
+  else {
+    return game;
+  }
+}
+
+const keyToDirection = {
+  // w
+  87: 0,
+  // e
+  69: 1,
+  // d
+  68: 2,
+  // s
+  83: 3,
+  // a
+  65: 4,
+  // q
+  81: 5,
+};
+
+class Board extends Component {
+  constructor() {
+    super();
+
+    this.state = {
+      game: gameCreate({
+        origin: [-32, -32],
+        grid: genGrid(),
+      }),
+    };
+
+    this.componentWillUpdate();
+  }
+
+  componentWillUpdate() {
+    window.removeEventListener('keyup', this.handleKeyUp);
+    window.addEventListener('keyup', this.handleKeyUp);
+  }
+
+  handleKeyUp(event) {
+    if (event.which in keyToDirection) {
+      this.setState(update(this.state, {
+        game: {$set: gameMoveShip(this.state.game, {id: 0, direction: keyToDirection[event.which]})},
+      }));
+    }
+  }
+
+  _windowRect() {
+    return {
+      top: window.scrollY - 10,
+      left: window.scrollX - 10,
+      bottom: window.scrollY + window.innerHeight + 10,
+      right: window.scrollX + window.innerWidth + 10,
+    };
+  }
+
+  windowRect() {
+    if (!this._cachedWindowRect) {
+      this._cachedWindowRect = this._windowRect();
+    }
+    return this._cachedWindowRect;
+  }
+
+  _groupRect(j, i) {
+    const top = j * 350;
+    const left = i * 296;
+    return {
+      top: top,
+      left: left,
+      bottom: top + 350,
+      right: left + 309,
+    };
+  }
+
+  groupRect(group) {
+    if (!this._cachedGroupRects) {
+      this._cachedGroupRects = {};
+    }
+    const index = group.props.j * 8 + group.props.i;
+    if (!this._cachedGroupRects[index]) {
+      this._cachedGroupRects[index] =
+        this._groupRect(group.props.j, group.props.i);
+    }
+    return this._cachedGroupRects[index];
+  }
+
+  groupIndexRect(index) {
+    if (!this._cachedGroupRects) {
+      this._cachedGroupRects = {};
+    }
+    if (!this._cachedGroupRects[index]) {
+      this._cachedGroupRects[index] =
+        this._groupRect(index / 8 | 0, index % 8);
+    }
+    return this._cachedGroupRects[index];
+  }
+
+  inRect(containee, rect) {
+    return (
+      containee.bottom > rect.top &&
+      containee.right > rect.left &&
+      containee.top < rect.bottom &&
+      containee.left < rect.right
+    );
+  }
+
+  groupInRect(group, rect) {
+    const groupRect = this.groupRect(group);
+    return this.inRect(groupRect, rect);
+  }
+
+  groupIndexInRect(index, rect) {
+    const groupRect = this.groupIndexRect(index);
+    return this.inRect(groupRect, rect);
+  }
+
+  handleGroupRef(group) {
+    if (!group) {return;}
+    if (!this.groups) {
+      this.groups = {};
+    }
+    this.groups[group.props.j * 8 + group.props.i] = group;
+    Promise.resolve()
+    .then(() => {
+      const groupEl = ReactDOM.findDOMNode(group);
+      groupEl.style.display = this.groupInRect(group, this.windowRect()) ? '' : 'none';
+    });
+  }
+
+  centerRunloop() {
+    cancelAnimationFrame(this._centerRunloopId);
+    this._centerRunloopId = requestAnimationFrame(this.centerRunloop);
+    const [x, y] = gridFindShip(this.state.game.grid, 0);
+    // const [gx, gy] = [x / 8 | 0, y / 8 | 0];
+    // const activeGroup = this.groups[gy * 8 + gx];
+    // let el;
+    // if (activeGroup) {
+    //   const activeEl = ReactDOM.findDOMNode(activeGroup);
+    //   el = activeEl.querySelector(`.tile-${x}-${y}`);
+    // }
+    // if (!el) {
+    //   return;
+    // }
+    // const [pageX, pageY] = position(el);
+    // const [targetX, targetY] = [
+    //   pageX - window.innerWidth / 2,
+    //   pageY - window.innerHeight / 2,
+    // ];
+    const [targetX, targetY] = [
+      x * 37 - window.innerWidth / 2 + 18.5,
+      y * 43.75 + (x % 2) * 21.875 - window.innerHeight / 2 + 21.875,
+    ];
+    // for (let group of Array.from(document.querySelectorAll(`.hex-grid-tile-group`))) {
+    //   const top = /\d+/.exec(group.style.top)[0] - window.scrollY;
+    //   const left = /\d+/.exec(group.style.left)[0] - window.scrollX;
+    //   const bottom = top + 350;
+    //   const right = left + 309;
+    //   group.style.display = (
+    //     bottom <= -10 || right <= -10 ||
+    //     top >= window.innerHeight + 10 ||
+    //     left >= window.innerWidth + 10
+    //   ) ? 'none' : '';
+    // }
+    const oldWindowRect = this.windowRect();
+    const [dx, dy] = [targetX - window.scrollX, targetY - window.scrollY];
+    let newVisible = 0;
+    if (dx !== 0 || dy !== 0) {
+      window.scrollBy(dx / 10, dy / 10);
+      const newWindowRect = this._cachedWindowRect = this._windowRect();
+
+      for (let groupIndex = 0; groupIndex < 64; groupIndex++) {
+        const inRect = this.groupIndexInRect(groupIndex, newWindowRect);
+        const group = this.groups[groupIndex];
+        if (
+          this.groupIndexInRect(groupIndex, oldWindowRect) !== inRect
+        ) {
+          const groupEl = ReactDOM.findDOMNode(group);
+          groupEl.style.display = inRect ? '' : 'none';
+        }
+        if (
+          newVisible < 1 && inRect && !group.state.visible && group.onVisible
+        ) {
+          newVisible++;
+          group.onVisible();
+        }
+      }
+    }
+  }
+
+  // _onTileVisibleLoop() {
+  //
+  // }
+  //
+  // onTileVisible(tile, rect, handle) {
+  //   if (this._onTileVisibleHandles.reduce((carry, oldTile) => ))
+  //   this._onTileVisibleHandles.push([tile, rect, handle]);
+  // }
+
+  render() {
+    Promise.resolve()
+    .then(() => {
+      this._centerRunloopId = requestAnimationFrame(this.centerRunloop);
+    });
+    return (<div onKeyUp={this.handleKeyUp}>
+      <HexGrid tiles={this.state.game.grid} groupRef={this.handleGroupRef} />
     </div>);
   }
 }
+
+export default autobind(Board);
